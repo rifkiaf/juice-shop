@@ -9,9 +9,6 @@ permissions:
   contents: read
   security-events: write
 
-env:
-  SECURITY_ENFORCE: false
-
 jobs:
 
   # -----------------------------------------
@@ -24,25 +21,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 🔐 Gitleaks SARIF (Report Mode)
-      - name: Gitleaks Scan (SARIF)
-        run: |
-            docker run --rm -v $(pwd):/repo zricethezav/gitleaks:latest detect \
-            --source=/repo \
-            --report-format sarif \
-            --report-path=/repo/gitleaks.sarif || true
+      # 🔐 Install jq (untuk validasi JSON)
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Debug Gitleaks
+      # 🔐 Gitleaks (FIXED - VALID SARIF)
+      - name: Install Gitleaks Binary
         run: |
-            ls -lah
-            head -n 20 gitleaks.sarif || echo "no file"
+          wget https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64 -O gitleaks
+          chmod +x gitleaks
+
+      - name: Run Gitleaks (SARIF)
+        run: |
+          ./gitleaks detect \
+            --source . \
+            --report-format sarif \
+            --report-path gitleaks.sarif \
+            || true
+
+      - name: Validate Gitleaks SARIF
+        run: |
+          echo "=== VALIDATE GITLEAKS ==="
+          cat gitleaks.sarif | jq . > /dev/null
 
       - name: Upload Gitleaks SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
-            sarif_file: gitleaks.sarif
+          sarif_file: gitleaks.sarif
 
-      # 🔍 Semgrep (SARIF FIXED)
+      # 🔍 Semgrep
       - name: Install Semgrep
         run: pipx install semgrep
 
@@ -54,24 +61,24 @@ jobs:
             --output=semgrep.sarif \
             . || true
 
-      - name: Debug Semgrep
-        run: |
-          ls -lah
-          head -n 20 semgrep.sarif || echo "no file"
+      - name: Validate Semgrep SARIF
+        run: cat semgrep.sarif | jq . > /dev/null
 
       - name: Upload Semgrep SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif
 
-
-      # 🏗️ Checkov (SARIF FIXED)
+      # 🏗️ Checkov
       - name: Install Checkov
         run: pip install checkov
 
       - name: Run Checkov
         run: |
           checkov -d . -o sarif > checkov.sarif || true
+
+      - name: Validate Checkov SARIF
+        run: cat checkov.sarif | jq . > /dev/null
 
       - name: Upload Checkov SARIF
         uses: github/codeql-action/upload-sarif@v3
@@ -101,7 +108,7 @@ jobs:
       - name: NPM Audit
         run: npm audit --audit-level=high || true
 
-      # 🔎 Trivy FS (SARIF FIXED)
+      # 🔎 Trivy FS (VALID SARIF)
       - name: Trivy FS Scan
         run: |
           docker run --rm \
@@ -110,6 +117,9 @@ jobs:
             --format sarif \
             --output /project/trivy.sarif \
             /project
+
+      - name: Validate Trivy SARIF
+        run: cat trivy.sarif | jq . > /dev/null
 
       - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v3
