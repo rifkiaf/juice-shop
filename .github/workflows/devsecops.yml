@@ -21,18 +21,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 🔐 Install jq
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
+      # 🔐 Install tools
+      - name: Install jq & pipx
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq pipx
+          pipx ensurepath
 
-      # 🔐 Gitleaks
+      # 🔐 Gitleaks (FIX FINAL)
       - name: Install Gitleaks
         run: |
           wget https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_8.30.1_linux_x64.tar.gz
           tar -xzf gitleaks_8.30.1_linux_x64.tar.gz
           chmod +x gitleaks
 
-      - name: Run Gitleaks (SARIF)
+      - name: Run Gitleaks
         run: |
           ./gitleaks detect \
             --source . \
@@ -40,10 +43,10 @@ jobs:
             --report-path gitleaks.sarif \
             || true
 
-      - name: Validate Gitleaks SARIF
+      - name: Validate Gitleaks
         run: cat gitleaks.sarif | jq . > /dev/null
 
-      - name: Upload Gitleaks SARIF
+      - name: Upload Gitleaks
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gitleaks.sarif
@@ -61,27 +64,30 @@ jobs:
             --output=semgrep.sarif \
             . || true
 
-      - name: Validate Semgrep SARIF
+      - name: Validate Semgrep
         run: cat semgrep.sarif | jq . > /dev/null
 
-      - name: Upload Semgrep SARIF
+      - name: Upload Semgrep
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif
 
 
-      # 🏗️ Checkov
+      # 🏗️ Checkov (FIX FINAL)
       - name: Install Checkov
         run: pip install checkov
 
       - name: Run Checkov
         run: |
-          checkov -d . -o sarif > checkov.sarif || true
+          checkov -d . \
+            -o sarif \
+            --output-file-path checkov.sarif \
+            || true
 
-      - name: Validate Checkov SARIF
+      - name: Validate Checkov
         run: cat checkov.sarif | jq . > /dev/null
 
-      - name: Upload Checkov SARIF
+      - name: Upload Checkov
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: checkov.sarif
@@ -97,7 +103,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node (Cache)
+      - name: Setup Node
         uses: actions/setup-node@v3
         with:
           node-version: 18
@@ -119,10 +125,10 @@ jobs:
             --output /project/trivy.sarif \
             /project
 
-      - name: Validate Trivy SARIF
+      - name: Validate Trivy
         run: cat trivy.sarif | jq . > /dev/null
 
-      - name: Upload Trivy SARIF
+      - name: Upload Trivy
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy.sarif
@@ -142,7 +148,7 @@ jobs:
       - name: Build Image
         run: docker build -t juice-shop:latest .
 
-      # 🛡️ Trivy Image Scan
+      # 🛡️ Trivy Image
       - name: Trivy Image Scan
         run: |
           docker run --rm \
@@ -164,12 +170,12 @@ jobs:
           fail_action: false
 
       # 🧹 Cleanup
-      - name: Stop Container
+      - name: Cleanup
         if: always()
         run: docker rm -f app || true
 
       # 📊 Summary
-      - name: Info
+      - name: Summary
         run: |
           echo "## 🔐 DevSecOps Report Mode" >> $GITHUB_STEP_SUMMARY
           echo "Branch: master" >> $GITHUB_STEP_SUMMARY
