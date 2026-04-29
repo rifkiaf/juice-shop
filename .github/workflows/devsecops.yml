@@ -21,14 +21,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 🔐 Install jq (untuk validasi JSON)
+      # 🔐 Install jq
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      # 🔐 Gitleaks (FIXED - VALID SARIF)
-      - name: Install Gitleaks Binary
+      # 🔐 Gitleaks
+      - name: Install Gitleaks
         run: |
-          wget https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64 -O gitleaks
+          wget https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_8.30.1_linux_x64.tar.gz
+          tar -xzf gitleaks_8.30.1_linux_x64.tar.gz
           chmod +x gitleaks
 
       - name: Run Gitleaks (SARIF)
@@ -40,14 +41,13 @@ jobs:
             || true
 
       - name: Validate Gitleaks SARIF
-        run: |
-          echo "=== VALIDATE GITLEAKS ==="
-          cat gitleaks.sarif | jq . > /dev/null
+        run: cat gitleaks.sarif | jq . > /dev/null
 
       - name: Upload Gitleaks SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gitleaks.sarif
+
 
       # 🔍 Semgrep
       - name: Install Semgrep
@@ -68,6 +68,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif
+
 
       # 🏗️ Checkov
       - name: Install Checkov
@@ -108,7 +109,7 @@ jobs:
       - name: NPM Audit
         run: npm audit --audit-level=high || true
 
-      # 🔎 Trivy FS (VALID SARIF)
+      # 🔎 Trivy FS
       - name: Trivy FS Scan
         run: |
           docker run --rm \
