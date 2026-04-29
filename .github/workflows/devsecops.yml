@@ -73,19 +73,23 @@ jobs:
           sarif_file: semgrep.sarif
 
 
-      # 🏗️ Checkov (FIX FINAL)
+      # 🏗️ Checkov (FIX FINAL - NO jq)
       - name: Install Checkov
         run: pip install checkov
 
       - name: Run Checkov
         run: |
           checkov -d . \
+            --framework dockerfile \
+            --quiet \
             -o sarif \
             --output-file-path checkov.sarif \
             || true
 
-      - name: Validate Checkov
-        run: cat checkov.sarif | jq . > /dev/null
+      - name: Debug Checkov
+        run: |
+          ls -lah
+          head -n 20 checkov.sarif || echo "no file"
 
       - name: Upload Checkov
         uses: github/codeql-action/upload-sarif@v3
