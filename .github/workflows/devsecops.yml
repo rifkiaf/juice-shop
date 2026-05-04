@@ -170,6 +170,7 @@ jobs:
         with:
           target: 'http://localhost:3000'
           fail_action: false
+          token: ""
 
       # Cleanup
       - name: Cleanup
